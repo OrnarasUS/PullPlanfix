@@ -23,7 +23,7 @@ public static class Program
                 await Log("Все попытки исчерпаны!", true);
                 return;
             }
-            await Log($"Выгрузка шаблонов...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
+            await Log($"Выгрузка шаблонов...{(numTry > 0 ? $" (Попытка {numTry + 1})" : "")}");
             var uri = $"https://{env.UserPlanfix}.planfix.ru/rest/task/templates?fields=id%2Cname";
             var req = new HttpRequestMessage(HttpMethod.Get, uri);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenPlanfix);
@@ -41,7 +41,7 @@ public static class Program
         catch (Exception e)
         {
             await Task.Delay(1500);
-            await Log(e.Message, true);
+            await Log($"{e.Message}\n{e.StackTrace}", true);
             await PullTemplates(numTry + 1);
         }
     }
@@ -55,8 +55,20 @@ public static class Program
                 await Log("Все попытки исчерпаны!", true);
                 return null;
             }
-            await Log($"Выгрузка №{id}...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
-            var uri = $"https://{env.UserPlanfix}.planfix.ru/rest/task/{id}?fields=id%2Cname%2Cstatus%2Ctemplate%2C114278%2Ccounterparty%2Cassignees%2C114352%2CdateTime%2C114320%2C114286%2C114394%2CendDateTime%2C114280%2C114424";
+            await Log($"Выгрузка №{id}...{(numTry > 0 ? $" (Попытка {numTry + 1})" : "")}");
+            string[] fields = [
+                #region Системные поля
+                "id", "name", "status", "template",
+                "counterparty", "assignees", "dateTime",
+                "endDateTime",
+                #endregion
+                #region Пользовательские поля
+                "114352", "114320", "114286",
+                "114394", "114278", "114280",
+                "114424", "114288"
+                #endregion
+                ];
+            var uri = $"https://{env.UserPlanfix}.planfix.ru/rest/task/{id}?fields={string.Join("%2C", fields)}";
             var req = new HttpRequestMessage(HttpMethod.Get, uri);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenPlanfix);
             req.Headers.Add("accept", "application/json");
@@ -69,7 +81,7 @@ public static class Program
         catch (Exception e)
         {
             await Task.Delay(1500);
-            await Log(e.Message, true);
+            await Log($"{e.Message}\n{e.StackTrace}", true);
             return await Pull(id, numTry + 1);
         }
     }
@@ -83,21 +95,21 @@ public static class Program
                 await Log("Все попытки исчерпаны!", true);
                 return;
             }
-            await Log($"Обновление задачи №{record.id}...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
+            await Log($"Обновление задачи №{record.id}...{(numTry > 0 ? $" (Попытка {numTry + 1})" : "")}");
             var req = new HttpRequestMessage(HttpMethod.Post, env.AddressSql);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenSql);
             req.Headers.Add("Prefer", "resolution=merge-duplicates");
             req.Content = new StringContent(JsonConvert.SerializeObject(record, Formatting.None, new JsonSerializerSettings
             {
                 NullValueHandling = NullValueHandling.Ignore,
-            }),new MediaTypeHeaderValue("application/json"));
+            }), new MediaTypeHeaderValue("application/json"));
             var resp = await client.SendAsync(req);
             if ((int)resp.StatusCode >= 300) throw new HttpRequestException($"StatusCode: {(int)resp.StatusCode}");
         }
         catch (Exception e)
         {
             await Task.Delay(1500);
-            await Log(e.Message, true);
+            await Log($"{e.Message}\n{e.StackTrace}", true);
             await Push(record, numTry + 1);
         }
     }
@@ -113,9 +125,9 @@ public static class Program
                 if (await Pull(i) is PlanfixTask pf) await Push(new SqlTask(pf));
             }
         }
-        catch(Exception e)
+        catch (Exception e)
         {
-            await Log(e.Message, true);
+            await Log($"{e.Message}\n{e.StackTrace}", true);
             Environment.Exit(0);
         }
     }
