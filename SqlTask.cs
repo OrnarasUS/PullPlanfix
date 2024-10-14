@@ -27,12 +27,10 @@ public struct SqlTask
         template = pf.Template is null ? null : Program.Templates[pf.Template.Value.Id];
         service = (string?)pf.CustomFieldData?.First(i => i?.Field.Id == 114278)?.Value;
         partner = pf.Counterparty?.Name;
-        if(pf.Assignees is PlanfixAssignees assigs)
+        if (pf.Assignees is PlanfixAssignees assigs)
         {
-            PlanfixEntity[] execs = [];
-            assigs.Groups.CopyTo(execs, 0);
-            assigs.Users.CopyTo(execs, execs.Length);
-            executors = execs.Length > 0 ? string.Join(", ", execs) : null;
+            PlanfixEntity[] execs = assigs.Groups.Union(assigs.Users).ToArray();
+            executors = execs.Length > 0 ? string.Join(", ", execs.Select(i=>i.Name)) : null;
         }
         mark = pf.CustomFieldData?.First(i => i?.Field.Id == 114352)?.Value?.ToString();
         created = (pf.DateTime?.DateTime)?.ToString("yyyy-MM-dd HH:mm");

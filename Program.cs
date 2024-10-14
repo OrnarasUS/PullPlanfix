@@ -18,15 +18,16 @@ public static class Program
     {
         try
         {
-            await Log($"Выгрузка шаблонов...{(numTry > 0 ? $" (Попытка {numTry})" : "")}");
             if (numTry == 3)
             {
                 await Log("Все попытки исчерпаны!", true);
                 return;
             }
+            await Log($"Выгрузка шаблонов...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
             var uri = $"https://{env.UserPlanfix}.planfix.ru/rest/task/templates?fields=id%2Cname";
             var req = new HttpRequestMessage(HttpMethod.Get, uri);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenPlanfix);
+            req.Headers.Add("accept", "application/json");
             var resp = await client.SendAsync(req);
             var json = await resp.Content.ReadAsStringAsync();
             var raw = JObject.Parse(json);
@@ -49,15 +50,16 @@ public static class Program
     {
         try
         {
-            await Log($"Выгрузка №{id}...{(numTry > 0 ? $" (Попытка {numTry})" : "")}");
             if (numTry == 3)
             {
                 await Log("Все попытки исчерпаны!", true);
                 return null;
             }
+            await Log($"Выгрузка №{id}...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
             var uri = $"https://{env.UserPlanfix}.planfix.ru/rest/task/{id}?fields=id%2Cname%2Cstatus%2Ctemplate%2C114278%2Ccounterparty%2Cassignees%2C114352%2CdateTime%2C114320%2C114286%2C114394%2CendDateTime%2C114280%2C114424";
             var req = new HttpRequestMessage(HttpMethod.Get, uri);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenPlanfix);
+            req.Headers.Add("accept", "application/json");
             var resp = await client.SendAsync(req);
             var json = await resp.Content.ReadAsStringAsync();
             var res = JsonConvert.DeserializeObject<PlanfixResponse>(json);
@@ -76,20 +78,19 @@ public static class Program
     {
         try
         {
-            await Log($"Обновление задачи №{record.id}...{(numTry > 0 ? $" (Попытка {numTry})" : "")}");
             if (numTry == 3)
             {
                 await Log("Все попытки исчерпаны!", true);
                 return;
             }
+            await Log($"Обновление задачи №{record.id}...{(numTry > 0 ? $" (Попытка {numTry+1})" : "")}");
             var req = new HttpRequestMessage(HttpMethod.Post, env.AddressSql);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", env.TokenSql);
             req.Headers.Add("Prefer", "resolution=merge-duplicates");
-            req.Headers.Add("Content-Type", "application/json");
             req.Content = new StringContent(JsonConvert.SerializeObject(record, Formatting.None, new JsonSerializerSettings
             {
                 NullValueHandling = NullValueHandling.Ignore,
-            }));
+            }),new MediaTypeHeaderValue("application/json"));
             var resp = await client.SendAsync(req);
             if ((int)resp.StatusCode >= 300) throw new HttpRequestException($"StatusCode: {(int)resp.StatusCode}");
         }
@@ -103,11 +104,19 @@ public static class Program
 
     public static async Task Main()
     {
-        await PullTemplates();
-        for (int i = 0; i <= 193259; i++)
+        try
         {
-            await Task.Delay(1000);
-            if (await Pull(i) is PlanfixTask pf) await Push(new SqlTask(pf));
+            await PullTemplates();
+            for (int i = 1; i <= 200000; i++)
+            {
+                await Task.Delay(1000);
+                if (await Pull(i) is PlanfixTask pf) await Push(new SqlTask(pf));
+            }
+        }
+        catch(Exception e)
+        {
+            await Log(e.Message, true);
+            Environment.Exit(0);
         }
     }
 }
